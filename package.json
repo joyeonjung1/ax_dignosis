@@ -1,0 +1,7 @@
+{
+  "name": "jeju-ax-survey",
+  "version": "1.0.0",
+  "private": true,
+  "description": "제주 소상공인 AX 진단 설문 (Vercel + Gemini + 구글 시트)",
+  "engines": { "node": ">=20" }
+}
