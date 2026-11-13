@@ -51,6 +51,7 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
 
   let last = null;
   const errs = [];
+  let hit429 = false;
   for (const a of attempts) {
     let r;
     try {
@@ -61,7 +62,6 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
       last = { status: 0, msg: a.model + (a.level ? '/' + a.level : '') + ' → 응답 없음(' + (e && e.name) + ')' };
       continue;
     }
-    if (r.status === 429) throw Object.assign(new Error('rate'), { code: 'rate_limited' });
     if (r.ok) {
       const data = await r.json();
       const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
@@ -76,9 +76,10 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
     console.error('Gemini error', a.model, a.level, r.status, msg);
     errs.push(a.model + (a.level ? '/' + a.level : '') + ' ' + r.status + ' ' + String(msg).slice(0, 160));
     last = { status: r.status, msg: a.model + (a.level ? '/' + a.level : '') + ' → ' + r.status + ' ' + String(msg).slice(0, 200) };
+    if (r.status === 429) hit429 = true;
     if (r.status === 401 || r.status === 403) break; // 키 문제는 다른 모델로도 안 풀린다
   }
-  throw Object.assign(new Error('gemini'), { code: 'network', detail: errs.join(' | ') });
+  throw Object.assign(new Error('gemini'), { code: hit429 ? 'rate_limited' : 'network', detail: errs.join(' | ') });
 }
 
 module.exports = { gemini, limited, clientIp, readBody };
