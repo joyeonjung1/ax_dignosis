@@ -12,12 +12,13 @@ module.exports = async (req, res) => {
   if (transcript.length < 20) return res.status(400).json({ code: 'bad_request' });
 
   try {
-    const text = await gemini({
+    const out = await gemini({
       system: DIAG,
       contents: [{ role: 'user', parts: [{ text: '[대화 기록]\n' + transcript }] }],
       json: true,
       maxOutputTokens: 4000,
     });
+    const text = out.text;
     let data;
     try {
       data = JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, ''));

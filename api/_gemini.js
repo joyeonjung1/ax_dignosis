@@ -44,17 +44,17 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw Object.assign(new Error('no key'), { code: 'not_granted', detail: 'GEMINI_API_KEY 환경변수가 없습니다' });
   const level = (process.env.GEMINI_THINKING_LEVEL || '').trim().toLowerCase();
-  // 같은 설정으로 한 번 더 시도하고(일시적인 과부하 대비), 예비 모델은 환경변수로 정했을 때만 쓴다
-  const fallback = (process.env.GEMINI_FALLBACK_MODEL || '').trim();
-  const attempts = [{ model: MODEL, level }, { model: MODEL, level }];
-  if (fallback && fallback !== MODEL) attempts.push({ model: fallback, level: '' });
+  // 정한 모델이 과부하일 때를 대비해 예비 모델을 차례로 시도한다(환경변수 GEMINI_FALLBACK_MODEL 로 바꿀 수 있고 쉼표로 여러 개 가능)
+  const fallbacks = (process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.7-flash,gemini-flash-latest')
+    .split(',').map((x) => x.trim()).filter((x) => x && x !== MODEL);
+  const attempts = [MODEL].concat(fallbacks).map((m) => ({ model: m, level: /gemini-3/.test(m) ? level : '' }));
 
   let last = null;
   const errs = [];
   for (const a of attempts) {
     let r;
     try {
-      r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 25000 : 16000 });
+      r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 20000 : 11000 });
     } catch (e) {
       console.error('Gemini timeout/network', a.model, a.level, String(e));
       errs.push(a.model + (a.level ? '/' + a.level : '') + ' 응답없음');
@@ -66,7 +66,7 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
       const data = await r.json();
       const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
       const text = parts.map((p) => p.text || '').join('').trim();
-      if (text) return text;
+      if (text) { if (a.model !== MODEL) console.warn('예비 모델로 응답함:', a.model); return { text, model: a.model }; }
       last = { status: 200, msg: '빈 응답 (' + ((data.promptFeedback || {}).blockReason || (((data.candidates || [])[0] || {}).finishReason) || '이유 없음') + ')' };
       continue;
     }
