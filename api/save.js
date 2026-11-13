@@ -35,10 +35,10 @@ module.exports = async (req, res) => {
     const text = await r.text();
     let ok = r.ok;
     try { ok = ok && JSON.parse(text).ok === true; } catch (e) { ok = false; }
-    if (!ok) { console.error('sheet save failed', r.status, text.slice(0, 300)); return res.status(502).json({ code: 'network' }); }
+    if (!ok) { console.error('sheet save failed', r.status, text.slice(0, 300)); return res.status(502).json({ code: 'network', detail: r.status + ' ' + text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 300) }); }
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('sheet save error', e);
-    return res.status(502).json({ code: 'network' });
+    return res.status(502).json({ code: 'network', detail: String(e).slice(0, 200) });
   }
 };
