@@ -44,18 +44,17 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw Object.assign(new Error('no key'), { code: 'not_granted', detail: 'GEMINI_API_KEY 환경변수가 없습니다' });
   const level = (process.env.GEMINI_THINKING_LEVEL || '').trim().toLowerCase();
-  // 정한 모델이 안 될 때(이름 오류 등)를 대비한 예비 모델
-  const fallback = process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash';
-  const attempts = [{ model: MODEL, level }];
-  if (level) attempts.push({ model: MODEL, level: '' });
-  if (fallback !== MODEL) attempts.push({ model: fallback, level: '' });
+  // 같은 설정으로 한 번 더 시도하고(일시적인 과부하 대비), 예비 모델은 환경변수로 정했을 때만 쓴다
+  const fallback = (process.env.GEMINI_FALLBACK_MODEL || '').trim();
+  const attempts = [{ model: MODEL, level }, { model: MODEL, level }];
+  if (fallback && fallback !== MODEL) attempts.push({ model: fallback, level: '' });
 
   let last = null;
   const errs = [];
   for (const a of attempts) {
     let r;
     try {
-      r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 25000 : 9000 });
+      r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 25000 : 16000 });
     } catch (e) {
       console.error('Gemini timeout/network', a.model, a.level, String(e));
       errs.push(a.model + (a.level ? '/' + a.level : '') + ' 응답없음');

@@ -715,13 +715,24 @@ textarea:disabled { opacity: .6; }
     if (!r.ok) throw { code: r.status === 429 ? 'rate_limited' : ((data && data.code) || 'network') };
     return data || {};
   }
+  /* 일시적인 연결 문제는 한 번 더 시도한다 */
+  async function callApiRetry(path, body, signal) {
+    try { return await callApi(path, body, signal); }
+    catch (e) {
+      if (e && e.code === 'network' && !(signal && signal.aborted)) {
+        await new Promise(function (r) { setTimeout(r, 1500); });
+        return await callApi(path, body, signal);
+      }
+      throw e;
+    }
+  }
   var sample = async function (input, opts) {
-    var d = await callApi('/api/chat', { messages: input }, opts && opts.signal);
+    var d = await callApiRetry('/api/chat', { messages: input }, opts && opts.signal);
     if (!d.text) throw { code: 'empty_completion' };
     return { text: d.text };
   };
   sample.json = async function (transcriptText, opts) {
-    var d = await callApi('/api/diag', { transcript: transcriptText }, opts && opts.signal);
+    var d = await callApiRetry('/api/diag', { transcript: transcriptText }, opts && opts.signal);
     if (!d.data) throw { code: 'invalid_json' };
     return d.data;
   };
