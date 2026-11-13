@@ -2,17 +2,17 @@
  * 구글 시트 저장 연결 스크립트 (Apps Script)
  * 설정 방법은 README.md 의 "3. 구글 시트 연결" 을 보세요.
  *
- * 아래 SECRET 값은 Vercel 환경변수 SHEET_SECRET 과 똑같이 맞춰야 합니다.
- * (아무 글자나 길게 정하세요. 예: ax-jeju-7f3k9q2m)
+ * SECRET 이 비어 있으면(기본값) 비밀 문구 확인 없이 받습니다.
+ * 나중에 쓰고 싶으면 문구를 적고 Vercel 환경변수 SHEET_SECRET 에 똑같이 넣으세요.
  */
-var SECRET = '여기에_비밀문구를_적으세요';
+var SECRET = '';
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
     var body = JSON.parse(e.postData.contents);
-    if (!body || body.secret !== SECRET) return out_({ ok: false, error: 'forbidden' });
+    if (!body || (SECRET && body.secret !== SECRET)) return out_({ ok: false, error: 'forbidden' });
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var now = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');

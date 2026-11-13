@@ -30,8 +30,11 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
   if (!key) throw Object.assign(new Error('no key'), { code: 'not_granted' });
   const generationConfig = { maxOutputTokens: maxOutputTokens || 700, temperature: json ? 0.4 : 0.7 };
   if (json) generationConfig.responseMimeType = 'application/json';
-  // 2.5 계열은 생각 시간을 꺼서 답을 빠르게 받는다
-  if (/2\.5-(flash|flash-lite)/.test(MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  // 생각 수준: 환경변수 GEMINI_THINKING_LEVEL(low, high 등)이 있으면 그대로 쓰고,
+  // 없으면 2.5 계열만 생각 시간을 꺼서 답을 빠르게 받는다
+  const level = (process.env.GEMINI_THINKING_LEVEL || '').trim().toLowerCase();
+  if (level) generationConfig.thinkingConfig = { thinkingLevel: level };
+  else if (/2\.5-(flash|flash-lite)/.test(MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
   const r = await fetch(url, {
     method: 'POST',

@@ -23,10 +23,10 @@ AI 대화는 Gemini가 맡고, 결과는 구글 시트에 한 줄씩 쌓입니�
 2. 키를 복사해 둡니다. (남에게 보이면 안 됩니다)
 
 ## 2. 구글 시트 연결 (가장 먼저 해 두세요)
-1. https://sheets.new 로 새 구글 시트를 만들고 이름을 `AX 진단 응답`으로 정합니다.
+1. 응답을 모을 구글 시트를 엽니다. (https://docs.google.com/spreadsheets/d/1LAVkdAoEAlVKboThSLZK1w2i4p7rBTSEQ6EBr8UndaI/edit)
 2. 메뉴 **확장 프로그램 → Apps Script** 를 엽니다.
 3. 기본 코드를 지우고 `apps_script/Code.gs` 내용을 전부 붙여넣습니다.
-4. 맨 위 `SECRET = '...'` 의 따옴표 안을 길고 아무도 모를 글자로 바꿉니다. (예: `ax-jeju-7f3k9q2m`) 이 문구를 메모해 두세요.
+4. 비밀 문구(`SECRET`)는 기본값(빈칸)이라 따로 정하지 않아도 됩니다.
 5. 오른쪽 위 **배포 → 새 배포 → 유형: 웹 앱**
    - 실행 사용자: **나**
    - 액세스 권한: **모든 사용자**
@@ -52,9 +52,11 @@ vercel --prod
 | 이름 | 값 |
 |---|---|
 | `GEMINI_API_KEY` | 1번에서 만든 키 |
-| `GEMINI_MODEL` | `gemini-2.5-flash` (비워 두어도 됩니다) |
+| `GEMINI_MODEL` | `gemini-3.8-flash` |
+| `GEMINI_THINKING_LEVEL` | `low` |
 | `SHEET_WEBHOOK_URL` | 2번 7단계의 웹 앱 URL |
-| `SHEET_SECRET` | 2번 4단계의 비밀 문구 (Code.gs와 똑같이) |
+
+`SHEET_SECRET`은 넣지 않아도 됩니다. (Code.gs의 SECRET을 비워 두었기 때문입니다.)
 
 환경변수를 넣은 뒤에는 한 번 더 배포해야 적용됩니다.
 ```bash
