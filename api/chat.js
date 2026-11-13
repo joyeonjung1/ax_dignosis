@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
   if (contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: '(사장님이 진단을 시작했습니다.)' }] });
 
   try {
-    const out = await gemini({ system: RULES, contents, json: false, maxOutputTokens: 600 });
+    const out = await gemini({ system: RULES, contents, json: false, maxOutputTokens: 1500 });
     return res.status(200).json({ text: out.text, model: out.model });
   } catch (e) {
     const code = e.code || 'network';

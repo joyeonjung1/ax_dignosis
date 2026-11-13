@@ -16,7 +16,7 @@ module.exports = async (req, res) => {
       system: DIAG,
       contents: [{ role: 'user', parts: [{ text: '[대화 기록]\n' + transcript }] }],
       json: true,
-      maxOutputTokens: 4000,
+      maxOutputTokens: 8000,
     });
     const text = out.text;
     let data;
