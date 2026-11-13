@@ -7,6 +7,9 @@
  */
 var SECRET = '';
 
+// 응답을 저장할 구글 시트 주소의 가운데 긴 글자(ID)입니다. 이 시트에 바로 쓰므로 어느 화면에서 만든 스크립트든 상관없습니다.
+var SHEET_ID = '1LAVkdAoEAlVKboThSLZK1w2i4p7rBTSEQ6EBr8UndaI';
+
 function doPost(e) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -14,7 +17,7 @@ function doPost(e) {
     var body = JSON.parse(e.postData.contents);
     if (!body || (SECRET && body.secret !== SECRET)) return out_({ ok: false, error: 'forbidden' });
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = SpreadsheetApp.openById(SHEET_ID);
     var now = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss');
 
     if (body.type === 'diagnosis') {
