@@ -52,7 +52,7 @@ vercel --prod
 | 이름 | 값 |
 |---|---|
 | `GEMINI_API_KEY` | 1번에서 만든 키 |
-| `GEMINI_MODEL` | `gemini-3.8-flash` |
+| `GEMINI_MODEL` | `gemini-3.6-flash` (3.8은 과부하일 때가 있어 3.6을 권장) |
 | `GEMINI_THINKING_LEVEL` | `low` |
 | `SHEET_WEBHOOK_URL` | 2번 7단계의 웹 앱 URL |
 
