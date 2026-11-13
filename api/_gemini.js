@@ -25,37 +25,50 @@ async function readBody(req) {
   try { return JSON.parse(raw || '{}'); } catch (e) { return {}; }
 }
 
-async function gemini({ system, contents, json, maxOutputTokens }) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw Object.assign(new Error('no key'), { code: 'not_granted' });
+async function callOnce({ key, model, level, system, contents, json, maxOutputTokens }) {
   const generationConfig = { maxOutputTokens: maxOutputTokens || 700, temperature: json ? 0.4 : 0.7 };
   if (json) generationConfig.responseMimeType = 'application/json';
-  // 생각 수준: 환경변수 GEMINI_THINKING_LEVEL(low, high 등)이 있으면 그대로 쓰고,
-  // 없으면 2.5 계열만 생각 시간을 꺼서 답을 빠르게 받는다
-  const level = (process.env.GEMINI_THINKING_LEVEL || '').trim().toLowerCase();
+  // 생각 수준: level(low, high 등)이 있으면 그대로 쓰고, 없으면 2.5 계열만 생각 시간을 꺼서 빠르게 받는다
   if (level) generationConfig.thinkingConfig = { thinkingLevel: level };
-  else if (/2\.5-(flash|flash-lite)/.test(MODEL)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + MODEL + ':generateContent';
-  const r = await fetch(url, {
+  else if (/2\.5-(flash|flash-lite)/.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+  return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig,
-    }),
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig }),
   });
-  if (r.status === 429) throw Object.assign(new Error('rate'), { code: 'rate_limited' });
-  if (!r.ok) {
+}
+
+async function gemini({ system, contents, json, maxOutputTokens }) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw Object.assign(new Error('no key'), { code: 'not_granted', detail: 'GEMINI_API_KEY 환경변수가 없습니다' });
+  const level = (process.env.GEMINI_THINKING_LEVEL || '').trim().toLowerCase();
+  // 정한 모델이 안 될 때(이름 오류 등)를 대비한 예비 모델
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash';
+  const attempts = [{ model: MODEL, level }];
+  if (level) attempts.push({ model: MODEL, level: '' });
+  if (fallback !== MODEL) attempts.push({ model: fallback, level: '' });
+
+  let last = null;
+  for (const a of attempts) {
+    const r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens });
+    if (r.status === 429) throw Object.assign(new Error('rate'), { code: 'rate_limited' });
+    if (r.ok) {
+      const data = await r.json();
+      const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+      const text = parts.map((p) => p.text || '').join('').trim();
+      if (text) return text;
+      last = { status: 200, msg: '빈 응답 (' + ((data.promptFeedback || {}).blockReason || (((data.candidates || [])[0] || {}).finishReason) || '이유 없음') + ')' };
+      continue;
+    }
     const t = await r.text().catch(() => '');
-    console.error('Gemini error', r.status, t.slice(0, 500));
-    throw Object.assign(new Error('gemini'), { code: 'network' });
+    let msg = t.slice(0, 300);
+    try { msg = JSON.parse(t).error.message || msg; } catch (e) {}
+    console.error('Gemini error', a.model, a.level, r.status, msg);
+    last = { status: r.status, msg: a.model + (a.level ? '/' + a.level : '') + ' → ' + r.status + ' ' + String(msg).slice(0, 200) };
+    if (r.status === 401 || r.status === 403) break; // 키 문제는 다른 모델로도 안 풀린다
   }
-  const data = await r.json();
-  const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
-  const text = parts.map((p) => p.text || '').join('').trim();
-  if (!text) throw Object.assign(new Error('empty'), { code: 'empty_completion' });
-  return text;
+  throw Object.assign(new Error('gemini'), { code: 'network', detail: last ? last.msg : '' });
 }
 
 module.exports = { gemini, limited, clientIp, readBody };

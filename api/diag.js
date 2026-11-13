@@ -27,6 +27,6 @@ module.exports = async (req, res) => {
     return res.status(200).json({ data });
   } catch (e) {
     const code = e.code || 'network';
-    return res.status(code === 'rate_limited' ? 429 : 502).json({ code });
+    return res.status(code === 'rate_limited' ? 429 : 502).json({ code, detail: e.detail || '' });
   }
 };
