@@ -25,7 +25,7 @@ async function readBody(req) {
   try { return JSON.parse(raw || '{}'); } catch (e) { return {}; }
 }
 
-async function callOnce({ key, model, level, system, contents, json, maxOutputTokens }) {
+async function callOnce({ key, model, level, system, contents, json, maxOutputTokens, timeoutMs }) {
   const generationConfig = { maxOutputTokens: maxOutputTokens || 700, temperature: json ? 0.4 : 0.7 };
   if (json) generationConfig.responseMimeType = 'application/json';
   // 생각 수준: level(low, high 등)이 있으면 그대로 쓰고, 없으면 2.5 계열만 생각 시간을 꺼서 빠르게 받는다
@@ -36,6 +36,7 @@ async function callOnce({ key, model, level, system, contents, json, maxOutputTo
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig }),
+    signal: AbortSignal.timeout(timeoutMs || 12000),
   });
 }
 
@@ -51,7 +52,14 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
 
   let last = null;
   for (const a of attempts) {
-    const r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens });
+    let r;
+    try {
+      r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 25000 : 9000 });
+    } catch (e) {
+      console.error('Gemini timeout/network', a.model, a.level, String(e));
+      last = { status: 0, msg: a.model + (a.level ? '/' + a.level : '') + ' → 응답 없음(' + (e && e.name) + ')' };
+      continue;
+    }
     if (r.status === 429) throw Object.assign(new Error('rate'), { code: 'rate_limited' });
     if (r.ok) {
       const data = await r.json();
