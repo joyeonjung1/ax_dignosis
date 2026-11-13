@@ -51,12 +51,14 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
   if (fallback !== MODEL) attempts.push({ model: fallback, level: '' });
 
   let last = null;
+  const errs = [];
   for (const a of attempts) {
     let r;
     try {
       r = await callOnce({ key, model: a.model, level: a.level, system, contents, json, maxOutputTokens, timeoutMs: json ? 25000 : 9000 });
     } catch (e) {
       console.error('Gemini timeout/network', a.model, a.level, String(e));
+      errs.push(a.model + (a.level ? '/' + a.level : '') + ' 응답없음');
       last = { status: 0, msg: a.model + (a.level ? '/' + a.level : '') + ' → 응답 없음(' + (e && e.name) + ')' };
       continue;
     }
@@ -73,10 +75,11 @@ async function gemini({ system, contents, json, maxOutputTokens }) {
     let msg = t.slice(0, 300);
     try { msg = JSON.parse(t).error.message || msg; } catch (e) {}
     console.error('Gemini error', a.model, a.level, r.status, msg);
+    errs.push(a.model + (a.level ? '/' + a.level : '') + ' ' + r.status + ' ' + String(msg).slice(0, 160));
     last = { status: r.status, msg: a.model + (a.level ? '/' + a.level : '') + ' → ' + r.status + ' ' + String(msg).slice(0, 200) };
     if (r.status === 401 || r.status === 403) break; // 키 문제는 다른 모델로도 안 풀린다
   }
-  throw Object.assign(new Error('gemini'), { code: 'network', detail: last ? last.msg : '' });
+  throw Object.assign(new Error('gemini'), { code: 'network', detail: errs.join(' | ') });
 }
 
 module.exports = { gemini, limited, clientIp, readBody };
